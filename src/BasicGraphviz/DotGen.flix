@@ -2,6 +2,13 @@
 
 pub mod BasicGraphviz.DotGen {
 
+
+    use FlixPretty.Doc
+    use FlixPretty.PrettyClass.Pretty
+    use FlixPretty.{<<>>}
+    use FlixPretty.{vcat, text, semi}
+
+
     pub eff DotGen {
         def node(): NodeId
         def edge(n1: NodeId, n2: NodeId): Unit
@@ -17,9 +24,8 @@ pub mod BasicGraphviz.DotGen {
         case Edge(NodeId, NodeId)
     }
 
-    pub type alias St = Int32
 
-    pub def handle(f: a -> b \ ef): a -> (List[DotElement], b) \ ef - DotGen = x -> region rc {
+    pub def handle(f: a -> b \ ef): a -> (String, b) \ ef - DotGen = x -> region rc {
         let i = Ref.fresh(rc, 1);
         let w = MutList.empty(rc);
         let ans = run {
@@ -38,10 +44,26 @@ pub mod BasicGraphviz.DotGen {
             }
         };
         let xs = MutList.toList(w);
-        (xs, ans)
+        let doc = vcat(List.map(Pretty.pPrint, xs));
+        (FlixPretty.render(80, doc), ans)
     }
 
-    pub def runDotGen(f: Unit -> a \ ef): (List[DotElement], a) \ ef - DotGen = 
+    instance Pretty[DotElement] {
+        pub override def pPrint(x: DotElement): Doc = match x {
+            case DotElement.Node(nid)       => Pretty.pPrint(nid) ++ semi()
+            case DotElement.Edge(n1, n2)    => 
+                Pretty.pPrint(n1) <<>> text("->") <<>> Pretty.pPrint(n2) ++ semi()
+        }
+    }
+
+    instance Pretty[NodeId] {
+        pub override def pPrint(x: NodeId): Doc = match x {
+            case NodeId.NodeId(s)      => text(s)
+            case NodeId.UserNodeId(i)  => if (i<0) text("u_${Int32.abs(i)}") else text("u${i}")
+        }
+    }
+
+    pub def runDotGen(f: Unit -> a \ ef): (String, a) \ ef - DotGen = 
         handle(f)()
 
 
