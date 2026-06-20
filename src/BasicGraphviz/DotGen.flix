@@ -1,9 +1,30 @@
+/*
+ * Copyright 2026 Stephen Tetley
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
+/// # Acknowledgment
+///
+/// This is an implementation of Andy Gill's `dotgen` (Text.Dot).
+/// https://hackage.haskell.org/package/dotgen
+///
+/// Note - because it uses effects rather than a monad the implementation
+/// is imperative unlike `dotgen`. Do not mix this libary with code that 
+/// does backtracking.
 
 pub mod BasicGraphviz.DotGen {
-    use BasicGraphviz.DotGen.DotElement
-
-
+    
     use FlixPretty.Doc
     use FlixPretty.PrettyClass.Pretty
     use FlixPretty.{<<>>, <&>}
@@ -12,8 +33,11 @@ pub mod BasicGraphviz.DotGen {
 
 
     pub eff DotGen {
-        def node(): NodeId
-        def edge(n1: NodeId, n2: NodeId): Unit
+        def node(attrs: List[(String, String)]): NodeId
+        def userNode(nid: NodeId, attrs: List[(String, String)]): Unit
+        def edge(n1: NodeId, n2: NodeId, attrs: List[(String, String)]): Unit
+
+        def attribute(n: String, v: String): Unit
     }
 
     pub enum NodeId with Eq, Order, ToString {
@@ -22,7 +46,7 @@ pub mod BasicGraphviz.DotGen {
     }
 
     pub enum DotElement with Eq, Order, ToString {
-        case GraphAttribute(String, String)
+        case Attribute(String, String)
         case Node(NodeId, List[(String, String)])
         case Edge(NodeId, NodeId, List[(String, String)])
         case Scope(List[DotElement])
@@ -37,14 +61,26 @@ pub mod BasicGraphviz.DotGen {
             f(x)
         } with handler DotGen {
 
-            def node(k) = {
-                let nid = NodeId.NodeId("n${Ref.get(i)}");
-                MutList.push(DotElement.Node(nid, Nil), w);
+            def node(attrs, k) = {
+                let i1 = Ref.get(i);
+                let nid = NodeId.NodeId("n${i1}");
+                MutList.push(DotElement.Node(nid, attrs), w);
+                Ref.put(i1+1, i);
                 k(nid)
             }   
+            
+            def userNode(nid, attrs, k) = {
+                MutList.push(DotElement.Node(nid, attrs), w);
+                k()
+            }
 
-            def edge(n1, n2, k) = {
-                MutList.push(DotElement.Edge(n1, n2, Nil), w);
+            def edge(n1, n2, attrs, k) = {
+                MutList.push(DotElement.Edge(n1, n2, attrs), w);
+                k()
+            }
+
+            def attribute(n, v, k)= {
+                MutList.push(DotElement.Attribute(n, v), w);
                 k()
             }
         };
@@ -55,7 +91,7 @@ pub mod BasicGraphviz.DotGen {
 
     instance Pretty[DotElement] {
         pub override def pPrint(x: DotElement): Doc = match x {
-            case DotElement.GraphAttribute(n, v)    => ppAttr(n, v)
+            case DotElement.Attribute(n, v)         => ppAttr(n, v)
             
             case DotElement.Node(nid, attrs)        => 
                 Pretty.pPrint(nid) ++ ppAttrs(attrs) ++ semi()
@@ -99,9 +135,9 @@ pub mod BasicGraphviz.DotGen {
         handle(f)()
 
 
-    pub def model1(): Unit \ DotGen = 
-        let n1 = node();
-        let n2 = node();
-        let _ = edge(n1, n2);
-        () 
+    pub def userNodeId(i: Int32): NodeId = NodeId.UserNodeId(i)
+
+    
+
 }
+

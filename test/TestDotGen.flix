@@ -8,9 +8,9 @@ pub mod TestDotGen {
 
 
     def model1(): Bool \ DotGen = {
-        let n1 = node();
-        let n2 = node();
-        let _ = edge(n1, n2);
+        let n1 = node(Nil);
+        let n2 = node(Nil);
+        let _ = edge(n1, n2, Nil);
         true 
     }
 
