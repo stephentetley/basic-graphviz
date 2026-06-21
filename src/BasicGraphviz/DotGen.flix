@@ -37,6 +37,7 @@ pub mod BasicGraphviz.DotGen {
         def userNode(nid: NodeId, attrs: List[(String, String)]): Unit
         def edge(n1: NodeId, n2: NodeId, attrs: List[(String, String)]): Unit
 
+        def share(attrs: List[(String, String)], nids: List[NodeId]): Unit
         def attribute(n: String, v: String): Unit
     }
 
@@ -76,6 +77,13 @@ pub mod BasicGraphviz.DotGen {
 
             def edge(n1, n2, attrs, k) = {
                 MutList.push(DotElement.Edge(n1, n2, attrs), w);
+                k()
+            }
+
+            def share(attrs, nids, k) = {
+                let xs = List.map(match (n, v) -> DotElement.Attribute(n, v), attrs);
+                let ys = List.map(match (nid) -> DotElement.Node(nid, Nil), nids);
+                MutList.push(DotElement.Scope(xs ++ ys), w);
                 k()
             }
 
@@ -137,7 +145,7 @@ pub mod BasicGraphviz.DotGen {
 
     pub def userNodeId(i: Int32): NodeId = NodeId.UserNodeId(i)
 
-    
+    pub def same(nids: List[NodeId]): Unit \ DotGen = share(("rank","same") :: Nil, nids)
 
 }
 
